@@ -112,6 +112,11 @@ class MainActivity : AppCompatActivity() {
         } else {
             // No MP3 files found
         }
+
+        val listView = viewBinding.mp3ListView
+        val titles = mp3FileList.map { it.title }
+        val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titles)
+        listView.adapter = adapter
     }
 
     private fun getMp3FilesFromStorage(): List<AudioFile> {
@@ -258,12 +263,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleMp3List() {
-        val listContainer: FrameLayout = findViewById(R.id.mp3_list_container)
+        Log.d(TAG, "toggleMp3List() called")
+        val listContainer = viewBinding.mp3ListContainer
         if (listContainer.visibility == View.VISIBLE) {
             listContainer.visibility = View.GONE
         } else {
             listContainer.visibility = View.VISIBLE
         }
+        Log.d(TAG, "listContainer.visibility: ${listContainer.visibility}")
     }
 }
 
