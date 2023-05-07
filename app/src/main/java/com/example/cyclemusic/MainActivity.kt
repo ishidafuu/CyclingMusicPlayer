@@ -1,10 +1,16 @@
 package com.example.cyclemusic
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
 import android.widget.SeekBar
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -12,6 +18,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -20,6 +27,7 @@ import com.example.cyclemusic.databinding.ActivityMainBinding
 private const val TAG = "MainActivity"
 
 // MainActivityクラスはAppCompatActivityを継承します
+@UnstableApi 
 class MainActivity : AppCompatActivity() {
 
     // viewBindingを遅延初期化
@@ -35,6 +43,8 @@ class MainActivity : AppCompatActivity() {
     private var playWhenReady = true
     private var currentItem = 0
     private var playbackPosition = 0L
+    private val requestCodePermission = 1
+    private lateinit var mediaUrlList: List<String>
 
     // アクティビティが作成されたときに呼び出されるコールバック
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,7 +63,78 @@ class MainActivity : AppCompatActivity() {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+
+        // ストレージへのアクセス許可をリクエスト
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                requestCodePermission
+            )
+        } else {
+            loadMp3FilesAndInitializePlayer()
+        }
     }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == requestCodePermission) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                loadMp3FilesAndInitializePlayer()
+            } else {
+                // Permission denied
+            }
+        }
+    }
+
+    private fun loadMp3FilesAndInitializePlayer() {
+        val mp3FileList = getMp3FilesFromStorage()
+        if (mp3FileList.isNotEmpty()) {
+            mediaUrlList = mp3FileList.map { it.contentUri.toString() }
+            initializePlayer()
+        } else {
+            // No MP3 files found
+        }
+    }
+
+    private fun getMp3FilesFromStorage(): List<AudioFile> {
+        val contentResolver = contentResolver
+        val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val cursor = contentResolver.query(uri, null, null, null, null)
+
+        val mp3Files = mutableListOf<AudioFile>()
+
+        cursor?.use {
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
+
+            while (cursor.moveToNext()) {
+                val mimeType = cursor.getString(mimeTypeColumn)
+                if (mimeType == "audio/mpeg") {
+                    val id = cursor.getLong(idColumn)
+                    val title = cursor.getString(titleColumn)
+                    val contentUri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString())
+                    mp3Files.add(
+                        AudioFile(
+                            id,
+                            title,
+                            contentUri
+                        )
+                    )
+                }
+            }
+        }
+
+        return mp3Files
+    }
+
 
     // アクティビティが開始されたときに呼び出されるコールバック
     public override fun onStart() {
@@ -157,3 +238,9 @@ private fun playbackStateListener() = object : Player.Listener {
         Log.d(TAG, "changed state to $stateString")
     }
 }
+
+data class AudioFile(
+    val id: Long,
+    val title: String,
+    val contentUri: Uri
+)
