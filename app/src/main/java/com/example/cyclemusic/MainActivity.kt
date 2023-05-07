@@ -4,7 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.SeekBar
+import android.widget.ArrayAdapter
+import android.widget.ListView
+import android.widget.FrameLayout
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
@@ -22,7 +28,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSourceFactory
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.example.cyclemusic.databinding.ActivityMainBinding
+
+
 
 private const val TAG = "MainActivity"
 
@@ -147,7 +158,7 @@ class MainActivity : AppCompatActivity() {
     // アクティビティが再開されたときに呼び出されるコールバック
     public override fun onResume() {
         super.onResume()
-        hideSystemUi()
+//        hideSystemUi()
         if (Util.SDK_INT <= 23 || player == null) {
             initializePlayer()
         }
@@ -180,15 +191,22 @@ class MainActivity : AppCompatActivity() {
             .also { exoPlayer ->
                 viewBinding.videoView.player = exoPlayer
 
-                val mediaItem = MediaItem.Builder()
-                    .setUri(getString(R.string.media_url_dash))
-                    .setMimeType(MimeTypes.APPLICATION_MPD)
-                    .build()
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.playWhenReady = playWhenReady
-                exoPlayer.seekTo(currentItem, playbackPosition)
-                exoPlayer.addListener(playbackStateListener)
-                exoPlayer.prepare()
+                val dataSourceFactory: DataSource.Factory = DefaultDataSourceFactory(this, "CycleMusicPlayer")
+
+                if (this::mediaUrlList.isInitialized) {
+                    val mediaItems = mediaUrlList.map { url ->
+                        MediaItem.Builder()
+                            .setUri(url)
+                            .setMimeType(MimeTypes.AUDIO_MPEG)
+                            .build()
+                    }
+
+                    exoPlayer.setMediaItems(mediaItems)
+                    exoPlayer.playWhenReady = playWhenReady
+                    exoPlayer.seekTo(currentItem, playbackPosition)
+                    exoPlayer.addListener(playbackStateListener)
+                    exoPlayer.prepare()
+                }
             }
     }
 
@@ -221,6 +239,30 @@ class MainActivity : AppCompatActivity() {
             controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_show_mp3_list -> {
+                toggleMp3List()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun toggleMp3List() {
+        val listContainer: FrameLayout = findViewById(R.id.mp3_list_container)
+        if (listContainer.visibility == View.VISIBLE) {
+            listContainer.visibility = View.GONE
+        } else {
+            listContainer.visibility = View.VISIBLE
         }
     }
 }

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+            android:id="@+id/action_show_mp3_list"
+            android:icon="@android:drawable/ic_menu_manage"
+            android:title="MP3リストを表示"
+            app:showAsAction="ifRoom" />
 </menu>
