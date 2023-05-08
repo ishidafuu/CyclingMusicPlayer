@@ -1,3 +1,4 @@
+<!-- strings.xml -->
 <resources>
     <string name="app_name">CycleMusic</string>
     <string name="player_activity_name">Media player</string>

@@ -1,3 +1,4 @@
+<!-- themes.xml (night) -->
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.CycleMusic" parent="Theme.Material3.DayNight">

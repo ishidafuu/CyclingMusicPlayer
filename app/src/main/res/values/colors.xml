@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- colors.xml -->
 <resources>
     <color name="primaryColor">#6200EE</color>
     <color name="onPrimaryColor">#FFFFFF</color>
