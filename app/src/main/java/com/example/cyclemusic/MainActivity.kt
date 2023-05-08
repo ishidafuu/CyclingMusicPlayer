@@ -1,38 +1,30 @@
 package com.example.cyclemusic
 
 import android.Manifest
-import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.SeekBar
 import android.widget.ArrayAdapter
-import android.widget.ListView
-import android.widget.FrameLayout
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.MediaStore
+import android.widget.SeekBar
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
-import androidx.media3.common.Player
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultDataSourceFactory
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.example.cyclemusic.databinding.ActivityMainBinding
-
 
 
 private const val TAG = "MainActivity"
@@ -57,7 +49,9 @@ class MainActivity : AppCompatActivity() {
     private val requestCodePermission = 1
     private lateinit var mediaUrlList: List<String>
 
+    
     // アクティビティが作成されたときに呼び出されるコールバック
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(viewBinding.root)
@@ -76,16 +70,20 @@ class MainActivity : AppCompatActivity() {
         })
 
         // ストレージへのアクセス許可をリクエスト
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
+        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        if (ContextCompat.checkSelfPermission(this, storagePermission) == PackageManager.PERMISSION_GRANTED) {
+            loadMp3FilesAndInitializePlayer()
+        } else {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                arrayOf(storagePermission),
                 requestCodePermission
             )
-        } else {
-            loadMp3FilesAndInitializePlayer()
         }
     }
 
@@ -100,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                 loadMp3FilesAndInitializePlayer()
             } else {
                 // Permission denied
+                Log.w(TAG, "Permission denied")
             }
         }
     }
@@ -111,6 +110,7 @@ class MainActivity : AppCompatActivity() {
             initializePlayer()
         } else {
             // No MP3 files found
+            Log.w(TAG, "No MP3 files found")
         }
 
         val listView = viewBinding.mp3ListView
@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
     // アクティビティが開始されたときに呼び出されるコールバック
     public override fun onStart() {
         super.onStart()
-        if (Util.SDK_INT > 23) {
+        if (Util.SDK_INT > Build.VERSION_CODES.M) {
             initializePlayer()
         }
     }
@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity() {
     public override fun onResume() {
         super.onResume()
 //        hideSystemUi()
-        if (Util.SDK_INT <= 23 || player == null) {
+        if (Util.SDK_INT <= Build.VERSION_CODES.M || player == null) {
             initializePlayer()
         }
     }
@@ -172,7 +172,7 @@ class MainActivity : AppCompatActivity() {
     // アクティビティが一時停止されたときに呼び出されるコールバック
     public override fun onPause() {
         super.onPause()
-        if (Util.SDK_INT <= 23) {
+        if (Util.SDK_INT <= Build.VERSION_CODES.M) {
             releasePlayer()
         }
     }
@@ -180,7 +180,7 @@ class MainActivity : AppCompatActivity() {
     // アクティビティが停止されたときに呼び出されるコールバック
     public override fun onStop() {
         super.onStop()
-        if (Util.SDK_INT > 23) {
+        if (Util.SDK_INT > Build.VERSION_CODES.M) {
             releasePlayer()
         }
     }
@@ -195,9 +195,7 @@ class MainActivity : AppCompatActivity() {
             .build()
             .also { exoPlayer ->
                 viewBinding.videoView.player = exoPlayer
-
-                val dataSourceFactory: DataSource.Factory = DefaultDataSourceFactory(this, "CycleMusicPlayer")
-
+                
                 if (this::mediaUrlList.isInitialized) {
                     val mediaItems = mediaUrlList.map { url ->
                         MediaItem.Builder()
@@ -235,16 +233,16 @@ class MainActivity : AppCompatActivity() {
             exoPlayer.setPlaybackParameters(playbackParameters)
         }
     }
-    
-    // システムUIを非表示にする関数
-    @SuppressLint("InlinedApi")
-    private fun hideSystemUi() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, viewBinding.videoView).let { controller ->
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+    private fun toggleMp3List() {
+        Log.d(TAG, "toggleMp3List() called")
+        val listContainer = viewBinding.mp3ListContainer
+        if (listContainer.visibility == View.VISIBLE) {
+            listContainer.visibility = View.GONE
+        } else {
+            listContainer.visibility = View.VISIBLE
         }
+        Log.d(TAG, "listContainer.visibility: ${listContainer.visibility}")
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -262,16 +260,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleMp3List() {
-        Log.d(TAG, "toggleMp3List() called")
-        val listContainer = viewBinding.mp3ListContainer
-        if (listContainer.visibility == View.VISIBLE) {
-            listContainer.visibility = View.GONE
-        } else {
-            listContainer.visibility = View.VISIBLE
-        }
-        Log.d(TAG, "listContainer.visibility: ${listContainer.visibility}")
-    }
+
 }
 
 // プレーヤーの再生状態が変更されたときにログに出力するリスナー関数
