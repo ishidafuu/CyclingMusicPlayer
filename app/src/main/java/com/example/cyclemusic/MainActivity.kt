@@ -1,10 +1,19 @@
 package com.example.cyclemusic
 
+import MainPagerAdapter
+import OnFolderSelectedListener
+import PlaybackFragment
+import android.os.Build
+import android.os.Bundle
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.util.UnstableApi
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.Menu
@@ -12,79 +21,54 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.SeekBar
-import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.example.cyclemusic.databinding.ActivityMainBinding
-
+private val requestCodePermissionAudio = 1
+private val requestCodePermissionStorage = 2
 
 private const val TAG = "MainActivity"
 
 // MainActivityクラスはAppCompatActivityを継承します
-@UnstableApi 
-class MainActivity : AppCompatActivity() {
+@UnstableApi
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
 
-    // viewBindingを遅延初期化
-    private val viewBinding by lazy(LazyThreadSafetyMode.NONE) {
-        ActivityMainBinding.inflate(layoutInflater)
-    }
+    private lateinit var viewPager: ViewPager2
+    private lateinit var tabLayout: TabLayout
 
-    // プレーヤーのリスナーを初期化
-    private val playbackStateListener: Player.Listener = playbackStateListener()
-    private var player: ExoPlayer? = null
-
-    // プレーヤーの状態を保持する変数
-    private var playWhenReady = true
-    private var currentItem = 0
-    private var playbackPosition = 0L
-    private val requestCodePermission = 1
-    private lateinit var mediaUrlList: List<String>
-
-    
-    // アクティビティが作成されたときに呼び出されるコールバック
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(viewBinding.root)
-
-        // SeekBarのリスナーを設定
-        viewBinding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val speed = progress / 100f
-                    setPlaybackSpeedWithoutChangingPitch(speed)
-                }
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
 
         // ストレージへのアクセス許可をリクエスト
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-
-        if (ContextCompat.checkSelfPermission(this, storagePermission) == PackageManager.PERMISSION_GRANTED) {
-            loadMp3FilesAndInitializePlayer()
-        } else {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
                 this,
-                arrayOf(storagePermission),
-                requestCodePermission
+                arrayOf(Manifest.permission.READ_MEDIA_AUDIO),
+                requestCodePermissionAudio
             )
         }
+
+
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+            requestCodePermissionStorage
+        )
+
+        setContentView(R.layout.activity_main)
+
+        viewPager = findViewById(R.id.viewPager)
+        tabLayout = findViewById(R.id.tabLayout)
+
+        setupViewPager()
     }
 
     override fun onRequestPermissionsResult(
@@ -93,192 +77,36 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == requestCodePermission) {
+        
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                loadMp3FilesAndInitializePlayer()
+               
             } else {
                 // Permission denied
-                Log.w(TAG, "Permission denied")
-            }
-        }
-    }
-
-    private fun loadMp3FilesAndInitializePlayer() {
-        val mp3FileList = getMp3FilesFromStorage()
-        if (mp3FileList.isNotEmpty()) {
-            mediaUrlList = mp3FileList.map { it.contentUri.toString() }
-            initializePlayer()
-        } else {
-            // No MP3 files found
-            Log.w(TAG, "No MP3 files found")
-        }
-
-        val listView = viewBinding.mp3ListView
-        val titles = mp3FileList.map { it.title }
-        val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titles)
-        listView.adapter = adapter
-    }
-
-    private fun getMp3FilesFromStorage(): List<AudioFile> {
-        val contentResolver = contentResolver
-        val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val cursor = contentResolver.query(uri, null, null, null, null)
-
-        val mp3Files = mutableListOf<AudioFile>()
-
-        cursor?.use {
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-            val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
-
-            while (cursor.moveToNext()) {
-                val mimeType = cursor.getString(mimeTypeColumn)
-                if (mimeType == "audio/mpeg") {
-                    val id = cursor.getLong(idColumn)
-                    val title = cursor.getString(titleColumn)
-                    val contentUri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id.toString())
-                    mp3Files.add(
-                        AudioFile(
-                            id,
-                            title,
-                            contentUri
-                        )
-                    )
+                if (requestCode == requestCodePermissionAudio) {
+                    Log.w(TAG, "Audio Permission denied")
+                }
+                if (requestCode == requestCodePermissionStorage) {
+                    Log.w(TAG, "Storage Permission denied")
                 }
             }
-        }
-
-        return mp3Files
+        
     }
 
-
-    // アクティビティが開始されたときに呼び出されるコールバック
-    public override fun onStart() {
-        super.onStart()
-        if (Util.SDK_INT > Build.VERSION_CODES.M) {
-            initializePlayer()
-        }
+    override fun onFolderSelected(folderPath: String) {
+        val playbackFragment = supportFragmentManager.findFragmentByTag("f" + viewPager.currentItem) as PlaybackFragment
+        playbackFragment.setFolderPath(folderPath)
     }
 
-    // アクティビティが再開されたときに呼び出されるコールバック
-    public override fun onResume() {
-        super.onResume()
-//        hideSystemUi()
-        if (Util.SDK_INT <= Build.VERSION_CODES.M || player == null) {
-            initializePlayer()
-        }
-    }
+    private fun setupViewPager() {
+        val adapter = MainPagerAdapter(supportFragmentManager, lifecycle)
+        viewPager.adapter = adapter
 
-    // アクティビティが一時停止されたときに呼び出されるコールバック
-    public override fun onPause() {
-        super.onPause()
-        if (Util.SDK_INT <= Build.VERSION_CODES.M) {
-            releasePlayer()
-        }
-    }
-
-    // アクティビティが停止されたときに呼び出されるコールバック
-    public override fun onStop() {
-        super.onStop()
-        if (Util.SDK_INT > Build.VERSION_CODES.M) {
-            releasePlayer()
-        }
-    }
-
-    // プレーヤーを初期化する関数
-    private fun initializePlayer() {
-        val trackSelector = DefaultTrackSelector(this).apply {
-            setParameters(buildUponParameters().setMaxVideoSizeSd())
-        }
-        player = ExoPlayer.Builder(this)
-            .setTrackSelector(trackSelector)
-            .build()
-            .also { exoPlayer ->
-                viewBinding.videoView.player = exoPlayer
-                
-                if (this::mediaUrlList.isInitialized) {
-                    val mediaItems = mediaUrlList.map { url ->
-                        MediaItem.Builder()
-                            .setUri(url)
-                            .setMimeType(MimeTypes.AUDIO_MPEG)
-                            .build()
-                    }
-
-                    exoPlayer.setMediaItems(mediaItems)
-                    exoPlayer.playWhenReady = playWhenReady
-                    exoPlayer.seekTo(currentItem, playbackPosition)
-                    exoPlayer.addListener(playbackStateListener)
-                    exoPlayer.prepare()
-                }
+        // Add the ViewPager to the TabLayout
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            when (position) {
+                0 -> tab.text = "再生"
+                1 -> tab.text = "フォルダ選択"
             }
-    }
-
-    // プレーヤーを解放する関数
-    private fun releasePlayer() {
-        player?.let { exoPlayer ->
-            playbackPosition = exoPlayer.currentPosition
-            currentItem = exoPlayer.currentMediaItemIndex
-            playWhenReady = exoPlayer.playWhenReady
-            exoPlayer.removeListener(playbackStateListener)
-            exoPlayer.release()
-        }
-        player = null
-    }
-
-    // プレーヤーの再生速度を設定するメソッド (ピッチを変更しない)
-    fun setPlaybackSpeedWithoutChangingPitch(speed: Float) {
-        player?.let { exoPlayer ->
-            val currentPitch = exoPlayer.playbackParameters.pitch
-            val playbackParameters = PlaybackParameters(speed, currentPitch)
-            exoPlayer.setPlaybackParameters(playbackParameters)
-        }
-    }
-
-    private fun toggleMp3List() {
-        Log.d(TAG, "toggleMp3List() called")
-        val listContainer = viewBinding.mp3ListContainer
-        if (listContainer.visibility == View.VISIBLE) {
-            listContainer.visibility = View.GONE
-        } else {
-            listContainer.visibility = View.VISIBLE
-        }
-        Log.d(TAG, "listContainer.visibility: ${listContainer.visibility}")
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_show_mp3_list -> {
-                toggleMp3List()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-
-}
-
-// プレーヤーの再生状態が変更されたときにログに出力するリスナー関数
-private fun playbackStateListener() = object : Player.Listener {
-    override fun onPlaybackStateChanged(playbackState: Int) {
-        val stateString: String = when (playbackState) {
-            ExoPlayer.STATE_IDLE -> "ExoPlayer.STATE_IDLE -"
-            ExoPlayer.STATE_BUFFERING -> "ExoPlayer.STATE_BUFFERING -"
-            ExoPlayer.STATE_READY -> "ExoPlayer.STATE_READY -"
-            ExoPlayer.STATE_ENDED -> "ExoPlayer.STATE_ENDED -"
-            else -> "UNKNOWN_STATE -"
-        }
-        Log.d(TAG, "changed state to $stateString")
+        }.attach()
     }
 }
-
-data class AudioFile(
-    val id: Long,
-    val title: String,
-    val contentUri: Uri
-)
