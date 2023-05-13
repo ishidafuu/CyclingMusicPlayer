@@ -9,18 +9,24 @@ import android.widget.Button
 import android.widget.ListView
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Color
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.cyclemusic.R
 import java.io.File
 import java.util.Random
 
+
+data class Song(val name: String, val path: String)
 class PlaybackFragment : Fragment() {
 
     private lateinit var mediaPlayer: MediaPlayer
-    private lateinit var mp3ListView: ListView
-    private lateinit var mp3Files: Array<File>
-    private lateinit var fileList: MutableList<String>
+    private lateinit var songRecyclerView: RecyclerView
+    private lateinit var songList: List<Song>
     private lateinit var stopButton: Button
     private lateinit var playButton: Button
     private lateinit var sharedPreferences: SharedPreferences
@@ -37,26 +43,19 @@ class PlaybackFragment : Fragment() {
             setFolderPath(folderPath)
         })
 
-        mp3ListView = view.findViewById(R.id.mp3ListView)
+        songRecyclerView = view.findViewById(R.id.songRecyclerView)
         stopButton = view.findViewById(R.id.stopButton)
         playButton = view.findViewById(R.id.playButton)
 
         mediaPlayer = MediaPlayer()
-        fileList = ArrayList()
+        songList = ArrayList()
 
-        populateMp3FilesAndFileList()
+        populateSongList()
 
-        val adapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_list_item_1,
-            fileList
-        )
+        val adapter = SongAdapter(songList)
 
-        mp3ListView.adapter = adapter
-
-        mp3ListView.setOnItemClickListener { parent, view, position, id ->
-            onSongSelected(position)
-        }
+        songRecyclerView.adapter = adapter
+        songRecyclerView.layoutManager = LinearLayoutManager(context)
 
         stopButton.setOnClickListener {
             stopMedia()
@@ -71,46 +70,43 @@ class PlaybackFragment : Fragment() {
         if (lastFolderPath != null) {
             setFolderPath(lastFolderPath)
         }
-        
+
         return view
     }
 
-    private fun populateMp3FilesAndFileList() {
+    private fun populateSongList() {
         if (folderPath != null) {
-            mp3Files = fetchAllMp3Files(File(folderPath))
+            songList = fetchAllMp3Files(File(folderPath))
         } else {
-            mp3Files = fetchAllMp3Files(Environment.getExternalStorageDirectory())
-        }
-
-        fileList.clear()
-        for (file in mp3Files) {
-            fileList.add(file.name)
+            songList = fetchAllMp3Files(Environment.getExternalStorageDirectory())
         }
     }
 
-    private fun fetchAllMp3Files(root: File): Array<File> {
-        val mp3Files = ArrayList<File>()
+    private fun fetchAllMp3Files(root: File): List<Song> {
+        val songFiles = ArrayList<Song>()
         val files = root.listFiles()
         if (files != null) {
             for (file in files) {
                 if (file.isDirectory) {
-                    mp3Files.addAll(fetchAllMp3Files(file))
+                    songFiles.addAll(fetchAllMp3Files(file))
                 } else if (file.name.endsWith(".mp3", ignoreCase = true)) {
-                    mp3Files.add(file)
+                    songFiles.add(Song(file.name, file.absolutePath))
                 }
             }
         }
-        return mp3Files.toTypedArray()
+        return songFiles
     }
-    
+
+
     private fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
         sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
         if (isAdded) {
-            populateMp3FilesAndFileList()
-            (mp3ListView.adapter as ArrayAdapter<*>).notifyDataSetChanged()
+            populateSongList()
+            (songRecyclerView.adapter as SongAdapter).notifyDataSetChanged()
         }
     }
+
     fun updateFileList() {
         viewModel.selectedFolderPath.value?.let {
             setFolderPath(it)
@@ -118,45 +114,42 @@ class PlaybackFragment : Fragment() {
     }
 
     fun stopMedia() {
-        if (mediaPlayer != null) {
-            mediaPlayer.stop()
-            mediaPlayer.reset() // MediaPlayerの状態をリセットします
-        }
+
+        mediaPlayer.stop()
+        mediaPlayer.reset() // MediaPlayerの状態をリセットします
+
     }
 
     fun playMedia(path: String) {
 //        val randomIndex = Random().nextInt(songList.size)
 //        playMedia(songList[randomIndex])
-
-        if (mediaPlayer != null) {
-            mediaPlayer.stop()
-            mediaPlayer.reset() // MediaPlayerの状態をリセットします
-            mediaPlayer.setDataSource(path)
-            mediaPlayer.prepare()
-            mediaPlayer.start()
-        }
+        mediaPlayer.stop()
+        mediaPlayer.reset() // MediaPlayerの状態をリセットします
+        mediaPlayer.setDataSource(path)
+        mediaPlayer.prepare()
+        mediaPlayer.start()
     }
 
 
     fun playRandomMedia() {
-        if (fileList.size == 0) {
+        if (songList.size == 0) {
             return
         }
-        
-        val randomIndex = Random().nextInt(fileList.size)
-        playMedia(fileList[randomIndex])
+
+        val randomIndex = Random().nextInt(songList.size)
+        playMedia(songList[randomIndex].path)
     }
-    
+
     private fun onSongSelected(position: Int) {
         try {
-            val selectedFile = mp3Files[position]
+            val selectedFile = songList[position]
             playMedia(selectedFile.path)
 //            stopButton.text = getString(R.string.pause_text)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
-    
+
     override fun onPause() {
         super.onPause()
         if (mediaPlayer.isPlaying) {
@@ -180,5 +173,34 @@ class PlaybackFragment : Fragment() {
             mediaPlayer.stop()
         }
         mediaPlayer.release()
+    }
+
+    private inner class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val songNameTextView: TextView = view.findViewById(R.id.songNameTextView)
+        val songLayout: LinearLayout = view.findViewById(R.id.songLayout)
+    }
+
+    private inner class SongAdapter(private val songs: List<Song>) : RecyclerView.Adapter<SongViewHolder>() {
+
+        var selectedPosition = -1
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
+            val view = layoutInflater.inflate(R.layout.song_item, parent, false)
+            return SongViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
+            val song = songs[position]
+            holder.songNameTextView.text = song.name
+            holder.songLayout.setOnClickListener {
+                playMedia(song.path)
+                notifyItemChanged(selectedPosition)
+                selectedPosition = position
+                notifyItemChanged(selectedPosition)
+            }
+            holder.songLayout.setBackgroundColor(if (position == selectedPosition) Color.YELLOW else Color.TRANSPARENT)
+        }
+
+        override fun getItemCount() = songs.size
     }
 }
