@@ -4,9 +4,7 @@ import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.ListView
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
@@ -39,9 +37,9 @@ class PlaybackFragment : Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.playback_fragment, container, false)
 
-        viewModel.selectedFolderPath.observe(viewLifecycleOwner, { folderPath ->
+        viewModel.selectedFolderPath.observe(viewLifecycleOwner) { folderPath ->
             setFolderPath(folderPath)
-        })
+        }
 
         songRecyclerView = view.findViewById(R.id.songRecyclerView)
         stopButton = view.findViewById(R.id.stopButton)
@@ -119,7 +117,7 @@ class PlaybackFragment : Fragment() {
     fun stopMedia() {
 
         mediaPlayer.stop()
-        mediaPlayer.reset() // MediaPlayerの状態をリセットします
+        mediaPlayer.reset() 
         val songAdapter = (songRecyclerView.adapter as SongAdapter)
         val previousSelectedPosition = songAdapter.selectedPosition
         songAdapter.selectedPosition = -1
@@ -127,10 +125,8 @@ class PlaybackFragment : Fragment() {
     }
 
     fun playMedia(path: String) {
-//        val randomIndex = Random().nextInt(songList.size)
-//        playMedia(songList[randomIndex])
         mediaPlayer.stop()
-        mediaPlayer.reset() // MediaPlayerの状態をリセットします
+        mediaPlayer.reset() 
         mediaPlayer.setDataSource(path)
         mediaPlayer.prepare()
         mediaPlayer.start()
@@ -165,17 +161,12 @@ class PlaybackFragment : Fragment() {
         super.onPause()
         if (mediaPlayer.isPlaying) {
             mediaPlayer.pause()
-//            stopButton.text = getString(R.string.play_text)
         }
     }
 
     override fun onResume() {
         super.onResume()
         updateFileList()
-//        if (!mediaPlayer.isPlaying) {
-//            mediaPlayer.start()
-//            playPauseButton.text = getString(R.string.pause_text)
-//        }
     }
 
     override fun onDestroy() {
