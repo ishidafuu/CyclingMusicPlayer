@@ -8,11 +8,9 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.example.cyclemusic.R
 import java.io.File
-import java.io.FileFilter
 
 class FolderSelectionFragment : Fragment() {
 
@@ -36,7 +34,7 @@ class FolderSelectionFragment : Fragment() {
         folders = ArrayList()
 
         currentDir = Environment.getExternalStorageDirectory()
-        populateFolderList(currentDir)
+        populateFolderList()
 
         val adapter = ArrayAdapter(
             requireContext(),
@@ -45,40 +43,15 @@ class FolderSelectionFragment : Fragment() {
         )
 
         folderListView.adapter = adapter
-
-//        folderListView.onItemClickListener =
-//            AdapterView.OnItemClickListener { _, _, position, _ ->
-//                val selectedFolder = folders[position]
-//                if (selectedFolder.isDirectory) {
-//                    folderList.clear()
-//                    folders.clear()
-//                    populateFolderList(selectedFolder)
-//                    adapter.notifyDataSetChanged()
-//                    currentDir = selectedFolder
-//                    val mp3Files = folders.filter { it.name.endsWith(".mp3", ignoreCase = true) }.toTypedArray()
-//                    updateAdapter(mp3Files)
-//
-//                } else if (selectedFolder.name.endsWith(".mp3", ignoreCase = true)) {
-////                    listener?.onFolderSelected(currentDir.absolutePath)
-//                }
-//            }
-
+        
         folderListView.onItemClickListener =
             AdapterView.OnItemClickListener { _, _, position, _ ->
                 val selectedFolder = folders[position]
                 if (selectedFolder.isDirectory) {
-                    folderList.clear()
-                    folders.clear()
                     currentDir = selectedFolder
-                    populateFolderList(selectedFolder)
-
+                    populateFolderList()
                     adapter.notifyDataSetChanged()
-                    
-//                    val mp3Files = folders.filter { it.name.endsWith(".mp3", ignoreCase = true) }.toTypedArray()
-//                    updateAdapter(mp3Files)
-
 //                    listener?.onFolderSelected(currentDir.absolutePath)
-                    
                 } else if (selectedFolder.name.endsWith(".mp3", ignoreCase = true)) {
 //                    listener?.onFolderSelected(mp3Files)
                 }
@@ -88,9 +61,7 @@ class FolderSelectionFragment : Fragment() {
         backButton.setOnClickListener {
             if (currentDir.path != Environment.getExternalStorageDirectory().path) {
                 currentDir = currentDir.parentFile as File
-                folderList.clear()
-                folders.clear()
-                populateFolderList(currentDir)
+                populateFolderList()
                 adapter.notifyDataSetChanged()
 //                listener?.onFolderSelected(currentDir.absolutePath)
             }
@@ -98,17 +69,7 @@ class FolderSelectionFragment : Fragment() {
 
         return view
     }
-
-    private fun updateAdapter(mp3Files: Array<File>) {
-        val mp3FileNames = mp3Files.map { it.name }.toTypedArray()
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, mp3FileNames)
-        folderListView.adapter = adapter
-
-        folderListView.setOnItemClickListener { _, _, position, _ ->
-            val selectedFile = mp3Files[position]
-            // ここで selectedFile を再生する処理を行います
-        }
-    }
+    
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -124,11 +85,14 @@ class FolderSelectionFragment : Fragment() {
         listener = null
     }
     
-    private fun populateFolderList(root: File) {
-        val files = root.listFiles()
+    private fun populateFolderList() {
+        folderList.clear()
+        folders.clear()
+        val files = currentDir.listFiles()
         if (files != null) {
             for (file in files) {
-                if (file.isDirectory || file.name.endsWith(".mp3", ignoreCase = true)) {
+                if (file.isDirectory 
+                    || file.name.endsWith(".mp3", ignoreCase = true)) {
                     folderList.add(file.name)
                     folders.add(file)
                 }

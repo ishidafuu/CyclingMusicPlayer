@@ -22,7 +22,7 @@ class PlaybackFragment : Fragment() {
     private lateinit var mp3Files: Array<File>
     private lateinit var fileList: MutableList<String>
     private var folderPath: String? = null
-    
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -33,16 +33,8 @@ class PlaybackFragment : Fragment() {
 
         mediaPlayer = MediaPlayer()
         fileList = ArrayList()
-        
-        if (folderPath != null) {
-            mp3Files = fetchAllMp3Files(File(folderPath))
-        } else {
-            mp3Files = fetchAllMp3Files(Environment.getExternalStorageDirectory())
-        }
 
-        for (file in mp3Files) {
-            fileList.add(file.name)
-        }
+        populateMp3FilesAndFileList()
 
         val adapter = ArrayAdapter(
             requireContext(),
@@ -74,6 +66,18 @@ class PlaybackFragment : Fragment() {
         return view
     }
 
+    private fun populateMp3FilesAndFileList() {
+        if (folderPath != null) {
+            mp3Files = fetchAllMp3Files(File(folderPath))
+        } else {
+            mp3Files = fetchAllMp3Files(Environment.getExternalStorageDirectory())
+        }
+
+        fileList.clear()
+        for (file in mp3Files) {
+            fileList.add(file.name)
+        }
+    }
 
     private fun fetchAllMp3Files(root: File): Array<File> {
         val mp3Files = ArrayList<File>()
@@ -93,15 +97,10 @@ class PlaybackFragment : Fragment() {
     fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
         if (isAdded) {
-            mp3Files = fetchAllMp3Files(File(folderPath))
-            fileList.clear()
-            for (file in mp3Files) {
-                fileList.add(file.name)
-            }
+            populateMp3FilesAndFileList()
             (mp3ListView.adapter as ArrayAdapter<*>).notifyDataSetChanged()
         }
     }
-
 
     companion object {
         fun newInstance(mp3Files: Array<File>): PlaybackFragment {

@@ -13,24 +13,8 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import android.Manifest
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
-import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.SeekBar
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
-import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Player
-import androidx.media3.common.util.Util
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import com.example.cyclemusic.databinding.ActivityMainBinding
 private val requestCodePermissionAudio = 1
 private val requestCodePermissionStorage = 2
 
