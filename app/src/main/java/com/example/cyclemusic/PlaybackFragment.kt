@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.cyclemusic.R
 import java.io.File
+import java.util.Random
 
 class PlaybackFragment : Fragment() {
 
@@ -20,7 +21,8 @@ class PlaybackFragment : Fragment() {
     private lateinit var mp3ListView: ListView
     private lateinit var mp3Files: Array<File>
     private lateinit var fileList: MutableList<String>
-    private lateinit var playPauseButton: Button
+    private lateinit var stopButton: Button
+    private lateinit var playButton: Button
     private lateinit var sharedPreferences: SharedPreferences
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
@@ -36,7 +38,8 @@ class PlaybackFragment : Fragment() {
         })
 
         mp3ListView = view.findViewById(R.id.mp3ListView)
-        playPauseButton = view.findViewById(R.id.playPauseButton)
+        stopButton = view.findViewById(R.id.stopButton)
+        playButton = view.findViewById(R.id.playButton)
 
         mediaPlayer = MediaPlayer()
         fileList = ArrayList()
@@ -55,8 +58,12 @@ class PlaybackFragment : Fragment() {
             onSongSelected(position)
         }
 
-        playPauseButton.setOnClickListener {
-            togglePlaybackState()
+        stopButton.setOnClickListener {
+            stopMedia()
+        }
+
+        playButton.setOnClickListener {
+            playRandomMedia()
         }
 
         sharedPreferences = requireContext().getSharedPreferences("CycleMusicPrefs", Context.MODE_PRIVATE)
@@ -95,28 +102,7 @@ class PlaybackFragment : Fragment() {
         }
         return mp3Files.toTypedArray()
     }
-
-    private fun playSelectedFile(selectedFile: File) {
-        mediaPlayer.apply {
-            stop()
-            reset()
-            setDataSource(selectedFile.path)
-            prepare()
-            start()
-        }
-        playPauseButton.text = getString(R.string.pause_text)
-    }
-
-    private fun togglePlaybackState() {
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.pause()
-            playPauseButton.text = getString(R.string.play_text)
-        } else {
-            mediaPlayer.start()
-            playPauseButton.text = getString(R.string.pause_text)
-        }
-    }
-
+    
     private fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
         sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
@@ -131,16 +117,41 @@ class PlaybackFragment : Fragment() {
         }
     }
 
-    private fun onSongSelected(position: Int) {
-        try {
+    fun stopMedia() {
+        if (mediaPlayer != null) {
             mediaPlayer.stop()
-            mediaPlayer.reset()
+            mediaPlayer.reset() // MediaPlayerの状態をリセットします
+        }
+    }
 
-            val selectedFile = mp3Files[position]
-            mediaPlayer.setDataSource(selectedFile.path)
+    fun playMedia(path: String) {
+//        val randomIndex = Random().nextInt(songList.size)
+//        playMedia(songList[randomIndex])
+
+        if (mediaPlayer != null) {
+            mediaPlayer.stop()
+            mediaPlayer.reset() // MediaPlayerの状態をリセットします
+            mediaPlayer.setDataSource(path)
             mediaPlayer.prepare()
             mediaPlayer.start()
-            playPauseButton.text = getString(R.string.pause_text)
+        }
+    }
+
+
+    fun playRandomMedia() {
+        if (fileList.size == 0) {
+            return
+        }
+        
+        val randomIndex = Random().nextInt(fileList.size)
+        playMedia(fileList[randomIndex])
+    }
+    
+    private fun onSongSelected(position: Int) {
+        try {
+            val selectedFile = mp3Files[position]
+            playMedia(selectedFile.path)
+//            stopButton.text = getString(R.string.pause_text)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -150,7 +161,7 @@ class PlaybackFragment : Fragment() {
         super.onPause()
         if (mediaPlayer.isPlaying) {
             mediaPlayer.pause()
-            playPauseButton.text = getString(R.string.play_text)
+//            stopButton.text = getString(R.string.play_text)
         }
     }
 

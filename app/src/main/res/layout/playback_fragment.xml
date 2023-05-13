@@ -10,9 +10,15 @@
             android:layout_weight="1" />
 
     <Button
-            android:id="@+id/playPauseButton"
+            android:id="@+id/stopButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Play/Pause" />
+            android:text="@string/stop" />
+    
+    <Button
+            android:id="@+id/playButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/play" />
 
 </LinearLayout>

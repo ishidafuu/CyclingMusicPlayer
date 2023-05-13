@@ -25,7 +25,6 @@ private val requestCodePermissionStorage = 2
 
 private const val TAG = "MainActivity"
 
-// MainActivityクラスはAppCompatActivityを継承します
 @UnstableApi
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
@@ -37,7 +36,6 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ストレージへのアクセス許可をリクエスト
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
                 this,
@@ -45,7 +43,6 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
                 requestCodePermissionAudio
             )
         }
-
 
         ActivityCompat.requestPermissions(
             this,
@@ -67,19 +64,18 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-               
-            } else {
-                // Permission denied
-                if (requestCode == requestCodePermissionAudio) {
-                    Log.w(TAG, "Audio Permission denied")
-                }
-                if (requestCode == requestCodePermissionStorage) {
-                    Log.w(TAG, "Storage Permission denied")
-                }
+
+        if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            // Permission granted
+        } else {
+            // Permission denied
+            if (requestCode == requestCodePermissionAudio) {
+                Log.w(TAG, getString(R.string.audio_permission_denied))
             }
-        
+            if (requestCode == requestCodePermissionStorage) {
+                Log.w(TAG, getString(R.string.storage_permission_denied))
+            }
+        }
     }
 
     override fun onFolderSelected(folderPath: String) {
@@ -90,17 +86,17 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
         val adapter = MainPagerAdapter(supportFragmentManager, lifecycle)
         viewPager.adapter = adapter
 
-        // Add the ViewPager to the TabLayout
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            when (position) {
-                0 -> tab.text = "再生"
-                1 -> tab.text = "フォルダ選択"
+            tab.text = when (position) {
+                0 -> getString(R.string.tab_playback)
+                1 -> getString(R.string.tab_folder_selection)
+                else -> null
             }
         }.attach()
 
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
-                if (position == 0) { // 0 is the index of the playback tab
+                if (position == 0) {
                     val playbackFragment = supportFragmentManager.findFragmentByTag("f$position") as PlaybackFragment
                     playbackFragment.updateFileList()
                 }
@@ -108,12 +104,11 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
         })
     }
 
-
     override fun onBackPressed() {
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         val navHostFragment = supportFragmentManager.findFragmentByTag("f" + viewPager.currentItem)
-        if ((navHostFragment as? OnBackPressed)?.onBackPressed() != true) {
-//            super.onBackPressed()
+        if ((navHostFragment?.childFragmentManager?.fragments?.get(0) as? OnBackPressed)?.onBackPressed() != true) {
+            super.onBackPressed()
         }
     }
 }

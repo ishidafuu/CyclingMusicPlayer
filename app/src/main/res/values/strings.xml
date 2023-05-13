@@ -5,8 +5,10 @@
     <string name="media_url_mp3">https://storage.googleapis.com/exoplayer-test-media-0/Jazz_In_Paris.mp3</string>
     <string name="logo">Google logo</string>
     <string name="action_load_mp3">Load MP3</string>
-    <string name="play_text">Play</string>
-    <string name="pause_text">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="play">Play</string>
     <string name="tab_playback">再生</string>
     <string name="tab_folder_selection">フォルダ選択</string>
+    <string name="audio_permission_denied">audio_permission_denied</string>
+    <string name="storage_permission_denied">storage_permission_denied</string>
 </resources>
