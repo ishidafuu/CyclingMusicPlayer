@@ -7,4 +7,6 @@
     <string name="action_load_mp3">Load MP3</string>
     <string name="play_text">Play</string>
     <string name="pause_text">Pause</string>
+    <string name="tab_playback">再生</string>
+    <string name="tab_folder_selection">フォルダ選択</string>
 </resources>

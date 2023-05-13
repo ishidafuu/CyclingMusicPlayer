@@ -12,7 +12,7 @@ import androidx.fragment.app.Fragment
 import com.example.cyclemusic.R
 import java.io.File
 
-class FolderSelectionFragment : Fragment() {
+class FolderSelectionFragment : Fragment() , OnBackPressed{
 
     private lateinit var backButton: Button
     private lateinit var currentDir: File
@@ -60,18 +60,21 @@ class FolderSelectionFragment : Fragment() {
         
 
         backButton.setOnClickListener {
-            if (currentDir.path != Environment.getExternalStorageDirectory().path) {
-                currentDir = currentDir.parentFile as File
-                populateFolderList()
-                adapter.notifyDataSetChanged()
-                folderSelected(currentDir.absolutePath)
-//                listener?.onFolderSelected(currentDir.absolutePath)
-            }
+            backPressed()
         }
 
         return view
     }
-    
+
+    private fun backPressed() {
+        if (currentDir.path != Environment.getExternalStorageDirectory().path) {
+            currentDir = currentDir.parentFile as File
+            populateFolderList()
+            (folderListView.adapter as ArrayAdapter<*>).notifyDataSetChanged()
+            folderSelected(currentDir.absolutePath)
+        }
+    }
+
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -104,5 +107,10 @@ class FolderSelectionFragment : Fragment() {
 
     private fun folderSelected(folderPath: String) {
         listener?.onFolderSelected(folderPath)
+    }
+
+    override fun onBackPressed(): Boolean {
+        backPressed()
+        return true
     }
 }

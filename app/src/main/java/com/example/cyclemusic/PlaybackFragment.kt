@@ -157,10 +157,10 @@ class PlaybackFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateFileList()
-        if (!mediaPlayer.isPlaying) {
-            mediaPlayer.start()
-            playPauseButton.text = getString(R.string.pause_text)
-        }
+//        if (!mediaPlayer.isPlaying) {
+//            mediaPlayer.start()
+//            playPauseButton.text = getString(R.string.pause_text)
+//        }
     }
 
     override fun onDestroy() {

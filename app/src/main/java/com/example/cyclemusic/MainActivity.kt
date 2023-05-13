@@ -1,6 +1,7 @@
 package com.example.cyclemusic
 
 import MainPagerAdapter
+import OnBackPressed
 import OnFolderSelectedListener
 import PlaybackFragment
 import SharedViewModel
@@ -17,6 +18,8 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.activity.viewModels
+import androidx.navigation.fragment.NavHostFragment
+
 private val requestCodePermissionAudio = 1
 private val requestCodePermissionStorage = 2
 
@@ -103,5 +106,14 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
                 }
             }
         })
+    }
+
+
+    override fun onBackPressed() {
+        val viewPager = findViewById<ViewPager2>(R.id.viewPager)
+        val navHostFragment = supportFragmentManager.findFragmentByTag("f" + viewPager.currentItem)
+        if ((navHostFragment as? OnBackPressed)?.onBackPressed() != true) {
+//            super.onBackPressed()
+        }
     }
 }
