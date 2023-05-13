@@ -51,6 +51,7 @@ class FolderSelectionFragment : Fragment() {
                     currentDir = selectedFolder
                     populateFolderList()
                     adapter.notifyDataSetChanged()
+                    folderSelected(currentDir.absolutePath)
 //                    listener?.onFolderSelected(currentDir.absolutePath)
                 } else if (selectedFolder.name.endsWith(".mp3", ignoreCase = true)) {
 //                    listener?.onFolderSelected(mp3Files)
@@ -63,6 +64,7 @@ class FolderSelectionFragment : Fragment() {
                 currentDir = currentDir.parentFile as File
                 populateFolderList()
                 adapter.notifyDataSetChanged()
+                folderSelected(currentDir.absolutePath)
 //                listener?.onFolderSelected(currentDir.absolutePath)
             }
         }
@@ -98,5 +100,9 @@ class FolderSelectionFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun folderSelected(folderPath: String) {
+        listener?.onFolderSelected(folderPath)
     }
 }

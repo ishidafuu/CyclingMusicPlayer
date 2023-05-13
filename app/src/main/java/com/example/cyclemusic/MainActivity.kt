@@ -3,6 +3,7 @@ package com.example.cyclemusic
 import MainPagerAdapter
 import OnFolderSelectedListener
 import PlaybackFragment
+import SharedViewModel
 import android.os.Build
 import android.os.Bundle
 import androidx.annotation.RequiresApi
@@ -15,6 +16,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import androidx.activity.viewModels
 private val requestCodePermissionAudio = 1
 private val requestCodePermissionStorage = 2
 
@@ -27,6 +29,7 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
 
     private lateinit var viewPager: ViewPager2
     private lateinit var tabLayout: TabLayout
+    private val viewModel: SharedViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,8 +80,7 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
     }
 
     override fun onFolderSelected(folderPath: String) {
-        val playbackFragment = supportFragmentManager.findFragmentByTag("f" + viewPager.currentItem) as PlaybackFragment
-        playbackFragment.setFolderPath(folderPath)
+        viewModel.selectedFolderPath.value = folderPath
     }
 
     private fun setupViewPager() {
@@ -92,5 +94,14 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
                 1 -> tab.text = "フォルダ選択"
             }
         }.attach()
+
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                if (position == 0) { // 0 is the index of the playback tab
+                    val playbackFragment = supportFragmentManager.findFragmentByTag("f$position") as PlaybackFragment
+                    playbackFragment.updateFileList()
+                }
+            }
+        })
     }
 }

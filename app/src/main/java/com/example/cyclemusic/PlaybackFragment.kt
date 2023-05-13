@@ -14,13 +14,15 @@ import com.example.cyclemusic.R
 import java.io.File
 import java.io.FilenameFilter
 import java.util.ArrayList
+import androidx.fragment.app.activityViewModels
 
-class PlaybackFragment : Fragment() {
+class PlaybackFragment : Fragment() , OnFolderSelectedListener{
 
     private lateinit var mediaPlayer: MediaPlayer
     private lateinit var mp3ListView: ListView
     private lateinit var mp3Files: Array<File>
     private lateinit var fileList: MutableList<String>
+    private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
 
     override fun onCreateView(
@@ -28,6 +30,11 @@ class PlaybackFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.playback_fragment, container, false)
+        super.onViewCreated(view, savedInstanceState)
+
+        viewModel.selectedFolderPath.observe(viewLifecycleOwner, { folderPath ->
+            setFolderPath(folderPath)
+        })
 
         mp3ListView = view.findViewById(R.id.mp3ListView)
 
@@ -102,17 +109,17 @@ class PlaybackFragment : Fragment() {
         }
     }
 
-    companion object {
-        fun newInstance(mp3Files: Array<File>): PlaybackFragment {
-            val fragment = PlaybackFragment()
-            val args = Bundle()
-            args.putSerializable("mp3Files", mp3Files)
-            fragment.arguments = args
-            return fragment
+    fun updateFileList() {
+        viewModel.selectedFolderPath.value?.let {
+            setFolderPath(it)
         }
     }
 
+    override fun onFolderSelected(folderPath: String) {
+        setFolderPath(folderPath)
+    }
 
+    
     override fun onPause() {
         super.onPause()
         if (mediaPlayer.isPlaying) {
@@ -122,9 +129,10 @@ class PlaybackFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (!mediaPlayer.isPlaying) {
-            mediaPlayer.start()
-        }
+        updateFileList()
+//        if (!mediaPlayer.isPlaying) {
+//            mediaPlayer.start()
+//        }
     }
 
     override fun onDestroy() {

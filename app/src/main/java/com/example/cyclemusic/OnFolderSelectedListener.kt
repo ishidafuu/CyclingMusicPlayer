@@ -1,5 +1,5 @@
 import java.io.File
 
 interface OnFolderSelectedListener {
-    fun onFolderSelected(absolutePath :String)
+    fun onFolderSelected(folderPath :String)
 }
