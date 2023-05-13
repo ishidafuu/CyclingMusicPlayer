@@ -16,9 +16,9 @@ import com.google.android.material.tabs.TabLayoutMediator
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
+import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.activity.viewModels
-import androidx.navigation.fragment.NavHostFragment
 
 private val requestCodePermissionAudio = 1
 private val requestCodePermissionStorage = 2
@@ -35,7 +35,9 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
                 this,
@@ -111,4 +113,15 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
 //            super.onBackPressed()
         }
     }
+
+    override fun onPause() {
+        super.onPause()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
 }
