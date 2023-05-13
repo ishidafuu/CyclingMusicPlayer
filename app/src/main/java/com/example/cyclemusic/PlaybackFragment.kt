@@ -45,7 +45,11 @@ class PlaybackFragment : Fragment() {
         stopButton = view.findViewById(R.id.stopButton)
         playButton = view.findViewById(R.id.playButton)
 
-        mediaPlayer = MediaPlayer()
+        mediaPlayer = MediaPlayer().apply {
+            setOnCompletionListener {
+                playRandomMedia()
+            }
+        }
         songList = ArrayList()
 
         populateSongList()
