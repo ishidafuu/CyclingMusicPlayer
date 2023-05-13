@@ -26,10 +26,10 @@ class PlaybackFragment : Fragment() {
 
     private lateinit var mediaPlayer: MediaPlayer
     private lateinit var songRecyclerView: RecyclerView
-    private lateinit var songList: List<Song>
     private lateinit var stopButton: Button
     private lateinit var playButton: Button
     private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var songList: MutableList<Song>
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
 
@@ -75,10 +75,10 @@ class PlaybackFragment : Fragment() {
     }
 
     private fun populateSongList() {
-        if (folderPath != null) {
-            songList = fetchAllMp3Files(File(folderPath))
+        songList = if (folderPath != null) {
+            ArrayList(fetchAllMp3Files(File(folderPath)))
         } else {
-            songList = fetchAllMp3Files(Environment.getExternalStorageDirectory())
+            ArrayList(fetchAllMp3Files(Environment.getExternalStorageDirectory()))
         }
     }
 
@@ -101,12 +101,15 @@ class PlaybackFragment : Fragment() {
     private fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
         sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
-        if (isAdded) {
-            populateSongList()
-            (songRecyclerView.adapter as SongAdapter).notifyDataSetChanged()
-        }
-    }
 
+        populateSongList()
+
+        val songAdapter = songRecyclerView.adapter as SongAdapter
+        songAdapter.songs.clear()
+        songAdapter.songs.addAll(songList as ArrayList<Song>)
+        songAdapter.notifyDataSetChanged()
+    }
+    
     fun updateFileList() {
         viewModel.selectedFolderPath.value?.let {
             setFolderPath(it)
@@ -153,7 +156,6 @@ class PlaybackFragment : Fragment() {
         try {
             val selectedFile = songList[position]
             playMedia(selectedFile.path)
-//            stopButton.text = getString(R.string.pause_text)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -189,7 +191,7 @@ class PlaybackFragment : Fragment() {
         val songLayout: LinearLayout = view.findViewById(R.id.songLayout)
     }
 
-    private inner class SongAdapter(private val songs: List<Song>) : RecyclerView.Adapter<SongViewHolder>() {
+    private inner class SongAdapter(val songs: MutableList<Song>) : RecyclerView.Adapter<SongViewHolder>() {
 
         var selectedPosition = -1
 
