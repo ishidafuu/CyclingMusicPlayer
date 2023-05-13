@@ -117,7 +117,10 @@ class PlaybackFragment : Fragment() {
 
         mediaPlayer.stop()
         mediaPlayer.reset() // MediaPlayerの状態をリセットします
-
+        val songAdapter = (songRecyclerView.adapter as SongAdapter)
+        val previousSelectedPosition = songAdapter.selectedPosition
+        songAdapter.selectedPosition = -1
+        songAdapter.notifyItemChanged(previousSelectedPosition)
     }
 
     fun playMedia(path: String) {
@@ -132,12 +135,18 @@ class PlaybackFragment : Fragment() {
 
 
     fun playRandomMedia() {
-        if (songList.size == 0) {
+        val songAdapter = songRecyclerView.adapter as SongAdapter
+        if (songAdapter.itemCount == 0) {
             return
         }
 
-        val randomIndex = Random().nextInt(songList.size)
+        val randomIndex = Random().nextInt(songAdapter.itemCount)
         playMedia(songList[randomIndex].path)
+
+        val previousSelectedPosition = songAdapter.selectedPosition
+        songAdapter.selectedPosition = randomIndex
+        songAdapter.notifyItemChanged(previousSelectedPosition)
+        songAdapter.notifyItemChanged(randomIndex)
     }
 
     private fun onSongSelected(position: Int) {
@@ -198,7 +207,7 @@ class PlaybackFragment : Fragment() {
                 selectedPosition = position
                 notifyItemChanged(selectedPosition)
             }
-            holder.songLayout.setBackgroundColor(if (position == selectedPosition) Color.YELLOW else Color.TRANSPARENT)
+            holder.songLayout.setBackgroundColor(if (position == selectedPosition) Color.DKGRAY else Color.TRANSPARENT)
         }
 
         override fun getItemCount() = songs.size
