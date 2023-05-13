@@ -134,6 +134,10 @@ class PlaybackFragment : Fragment() {
 
 
     fun playRandomMedia() {
+        if (songList.isEmpty()) {
+            return
+        }
+        
         val songAdapter = songRecyclerView.adapter as SongAdapter
         if (songAdapter.itemCount == 0) {
             return
@@ -146,6 +150,8 @@ class PlaybackFragment : Fragment() {
         songAdapter.selectedPosition = randomIndex
         songAdapter.notifyItemChanged(previousSelectedPosition)
         songAdapter.notifyItemChanged(randomIndex)
+        
+        songRecyclerView.layoutManager?.scrollToPosition(randomIndex)
     }
 
     private fun onSongSelected(position: Int) {
