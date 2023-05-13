@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.example.cyclemusic.R
@@ -19,6 +21,7 @@ class PlaybackFragment : Fragment() {
     private lateinit var mp3Files: Array<File>
     private lateinit var fileList: MutableList<String>
     private lateinit var playPauseButton: Button
+    private lateinit var sharedPreferences: SharedPreferences
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
 
@@ -56,6 +59,12 @@ class PlaybackFragment : Fragment() {
             togglePlaybackState()
         }
 
+        sharedPreferences = requireContext().getSharedPreferences("CycleMusicPrefs", Context.MODE_PRIVATE)
+        val lastFolderPath = sharedPreferences.getString("LastFolderPath", null)
+        if (lastFolderPath != null) {
+            setFolderPath(lastFolderPath)
+        }
+        
         return view
     }
 
@@ -110,6 +119,7 @@ class PlaybackFragment : Fragment() {
 
     private fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
+        sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
         if (isAdded) {
             populateMp3FilesAndFileList()
             (mp3ListView.adapter as ArrayAdapter<*>).notifyDataSetChanged()
