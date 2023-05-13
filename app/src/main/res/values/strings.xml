@@ -5,4 +5,6 @@
     <string name="media_url_mp3">https://storage.googleapis.com/exoplayer-test-media-0/Jazz_In_Paris.mp3</string>
     <string name="logo">Google logo</string>
     <string name="action_load_mp3">Load MP3</string>
+    <string name="play_text">Play</string>
+    <string name="pause_text">Pause</string>
 </resources>

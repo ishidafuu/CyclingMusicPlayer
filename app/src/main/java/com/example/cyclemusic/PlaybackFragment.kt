@@ -1,27 +1,24 @@
-import android.content.Context
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.ListView
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import com.example.cyclemusic.R
 import java.io.File
-import java.io.FilenameFilter
-import java.util.ArrayList
-import androidx.fragment.app.activityViewModels
 
-class PlaybackFragment : Fragment() , OnFolderSelectedListener{
+class PlaybackFragment : Fragment() {
 
     private lateinit var mediaPlayer: MediaPlayer
     private lateinit var mp3ListView: ListView
     private lateinit var mp3Files: Array<File>
     private lateinit var fileList: MutableList<String>
+    private lateinit var playPauseButton: Button
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
 
@@ -30,13 +27,13 @@ class PlaybackFragment : Fragment() , OnFolderSelectedListener{
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.playback_fragment, container, false)
-        super.onViewCreated(view, savedInstanceState)
 
         viewModel.selectedFolderPath.observe(viewLifecycleOwner, { folderPath ->
             setFolderPath(folderPath)
         })
 
         mp3ListView = view.findViewById(R.id.mp3ListView)
+        playPauseButton = view.findViewById(R.id.playPauseButton)
 
         mediaPlayer = MediaPlayer()
         fileList = ArrayList()
@@ -51,24 +48,13 @@ class PlaybackFragment : Fragment() , OnFolderSelectedListener{
 
         mp3ListView.adapter = adapter
 
-        mp3ListView.onItemClickListener =
-            AdapterView.OnItemClickListener { parent, view, position, id ->
-                if (mediaPlayer.isPlaying) {
-                    mediaPlayer.stop()
-                    mediaPlayer.reset()
-                }
+        mp3ListView.setOnItemClickListener { parent, view, position, id ->
+            onSongSelected(position)
+        }
 
-                val selectedFile = mp3Files[position]
-                mediaPlayer.setDataSource(selectedFile.path)
-                mediaPlayer.prepare()
-                mediaPlayer.start()
-
-                Toast.makeText(
-                    requireContext(),
-                    "Now playing: ${selectedFile.name}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+        playPauseButton.setOnClickListener {
+            togglePlaybackState()
+        }
 
         return view
     }
@@ -101,38 +87,70 @@ class PlaybackFragment : Fragment() , OnFolderSelectedListener{
         return mp3Files.toTypedArray()
     }
 
-    fun setFolderPath(folderPath: String) {
+    private fun playSelectedFile(selectedFile: File) {
+        mediaPlayer.apply {
+            stop()
+            reset()
+            setDataSource(selectedFile.path)
+            prepare()
+            start()
+        }
+        playPauseButton.text = getString(R.string.pause_text)
+    }
+
+    private fun togglePlaybackState() {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.pause()
+            playPauseButton.text = getString(R.string.play_text)
+        } else {
+            mediaPlayer.start()
+            playPauseButton.text = getString(R.string.pause_text)
+        }
+    }
+
+    private fun setFolderPath(folderPath: String) {
         this.folderPath = folderPath
         if (isAdded) {
             populateMp3FilesAndFileList()
             (mp3ListView.adapter as ArrayAdapter<*>).notifyDataSetChanged()
         }
     }
-
     fun updateFileList() {
         viewModel.selectedFolderPath.value?.let {
             setFolderPath(it)
         }
     }
 
-    override fun onFolderSelected(folderPath: String) {
-        setFolderPath(folderPath)
-    }
+    private fun onSongSelected(position: Int) {
+        try {
+            mediaPlayer.stop()
+            mediaPlayer.reset()
 
+            val selectedFile = mp3Files[position]
+            mediaPlayer.setDataSource(selectedFile.path)
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+            playPauseButton.text = getString(R.string.pause_text)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
     
     override fun onPause() {
         super.onPause()
         if (mediaPlayer.isPlaying) {
             mediaPlayer.pause()
+            playPauseButton.text = getString(R.string.play_text)
         }
     }
 
     override fun onResume() {
         super.onResume()
         updateFileList()
-//        if (!mediaPlayer.isPlaying) {
-//            mediaPlayer.start()
-//        }
+        if (!mediaPlayer.isPlaying) {
+            mediaPlayer.start()
+            playPauseButton.text = getString(R.string.pause_text)
+        }
     }
 
     override fun onDestroy() {
