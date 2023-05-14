@@ -16,17 +16,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.cyclemusic.R
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import java.io.File
 import java.util.Random
 
-data class Song(val name: String, val path: String)
+data class Song(val name: String, val path: String, var tempo: Int)
 
 class PlaybackFragment : Fragment() {
 
@@ -41,7 +36,12 @@ class PlaybackFragment : Fragment() {
     private lateinit var songList: MutableList<Song>
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
-    private var playbackSpeed: Float = 1f
+    private var currentSongName: String? = null
+    private val defaultTemp: Int = 100
+    private val deltaTemp: Int = 2
+    private val minTemp: Int = 10
+    private val maxTemp: Int = 200
+    private var playbackSpeed: Int = defaultTemp
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -53,7 +53,8 @@ class PlaybackFragment : Fragment() {
         setupObservables()
         setupButtons()
         loadLastFolderPath()
-
+        populateSongList()
+        
         return view
     }
 
@@ -71,9 +72,7 @@ class PlaybackFragment : Fragment() {
             prepare()
         }
         songList = ArrayList()
-
-        populateSongList()
-
+        
         val adapter = SongAdapter(songList)
 
         songRecyclerView.adapter = adapter
@@ -97,14 +96,20 @@ class PlaybackFragment : Fragment() {
 
         tempoUpButton.setOnClickListener {
             increaseTempo()
+            updateSongTempo(currentSongName, playbackSpeed)
+            updateSongInRecyclerView(currentSongName)
         }
 
         tempoDownButton.setOnClickListener {
             decreaseTempo()
+            updateSongTempo(currentSongName, playbackSpeed)
+            updateSongInRecyclerView(currentSongName)
         }
 
         defaultTempoButton.setOnClickListener {
             resetTempo()
+            updateSongTempo(currentSongName, playbackSpeed)
+            updateSongInRecyclerView(currentSongName)
         }
     }
 
@@ -117,11 +122,13 @@ class PlaybackFragment : Fragment() {
     }
 
     private fun populateSongList() {
-        songList = if (folderPath != null) {
+        val newSongList = if (folderPath != null) {
             ArrayList(fetchAllMp3Files(File(folderPath)))
         } else {
             ArrayList(fetchAllMp3Files(Environment.getExternalStorageDirectory()))
         }
+        songList.clear()
+        songList.addAll(newSongList)
     }
 
     private fun fetchAllMp3Files(root: File): List<Song> {
@@ -132,7 +139,10 @@ class PlaybackFragment : Fragment() {
                 if (file.isDirectory) {
                     songFiles.addAll(fetchAllMp3Files(file))
                 } else if (file.name.endsWith(".mp3", ignoreCase = true)) {
-                    songFiles.add(Song(file.name, file.absolutePath))
+                    val mediaItem = MediaItem.fromUri(Uri.parse(file.absolutePath))
+                    val songName = mediaItem.mediaMetadata.title?.toString() ?: File(file.absolutePath).name
+                    val tempo = getTempoForSong(songName)
+                    songFiles.add(Song(file.name, file.absolutePath, tempo))
                 }
             }
         }
@@ -161,16 +171,46 @@ class PlaybackFragment : Fragment() {
         exoPlayer.stop()
         val songAdapter = (songRecyclerView.adapter as SongAdapter)
         val previousSelectedPosition = songAdapter.selectedPosition
+        currentSongName = null
         songAdapter.selectedPosition = -1
         songAdapter.notifyItemChanged(previousSelectedPosition)
     }
 
+
+    private fun increaseTempo() {
+        playbackSpeed += deltaTemp
+        if (playbackSpeed > maxTemp) playbackSpeed = maxTemp
+        updateTempo()
+        saveTempoForSong(currentSongName, playbackSpeed)
+    }
+
+    private fun decreaseTempo() {
+        playbackSpeed -= deltaTemp
+        if (playbackSpeed < minTemp) playbackSpeed = minTemp 
+        updateTempo()
+        saveTempoForSong(currentSongName, playbackSpeed)
+    }
+
+    private fun resetTempo() {
+        playbackSpeed = defaultTemp
+        updateTempo()
+        saveTempoForSong(currentSongName, playbackSpeed)
+    }
+
+    private fun updateTempo() {
+        exoPlayer.setPlaybackParameters(PlaybackParameters(playbackSpeed / 100f))
+    }
+
     fun playMedia(path: String) {
         val mediaItem = MediaItem.fromUri(Uri.parse(path))
+        currentSongName = mediaItem.mediaMetadata.title?.toString() ?: File(path).name
         exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
+        playbackSpeed = getTempoForSong(currentSongName)
+        updateTempo()
         exoPlayer.playWhenReady = true
     }
+
 
     private fun playRandomMedia() {
         if (songList.isEmpty()) {
@@ -191,22 +231,6 @@ class PlaybackFragment : Fragment() {
         songAdapter.notifyItemChanged(randomIndex)
 
         songRecyclerView.layoutManager?.scrollToPosition(randomIndex)
-    }
-
-    private fun increaseTempo() {
-        playbackSpeed += 0.02f
-        exoPlayer.setPlaybackParameters(PlaybackParameters(playbackSpeed))
-    }
-
-    private fun decreaseTempo() {
-        playbackSpeed -= 0.02f
-        if (playbackSpeed < 0.1f) playbackSpeed = 0.1f  // prevent playback speed from going too low
-        exoPlayer.setPlaybackParameters(PlaybackParameters(playbackSpeed))
-    }
-
-    private fun resetTempo() {
-        playbackSpeed = 1f
-        exoPlayer.setPlaybackParameters(PlaybackParameters(playbackSpeed))
     }
 
     private fun onSongSelected(position: Int) {
@@ -238,9 +262,60 @@ class PlaybackFragment : Fragment() {
         exoPlayer.release()
     }
 
+    private fun saveTempoForSong(songName: String?, tempo: Int) {
+        if (songName == null) {
+            return
+        }
+
+        sharedPreferences.edit().putInt(songName, tempo).apply()
+    }
+
+    private fun getTempoForSong(songName: String?): Int {
+        if (songName == null) {
+            return defaultTemp
+        }
+
+        val tempo: Any = sharedPreferences.getAll()[songName] ?: defaultTemp
+        
+        if (tempo is Int == false) {
+            saveTempoForSong(songName, defaultTemp)
+            return defaultTemp
+        }
+        
+        return tempo
+        
+//        return sharedPreferences.getInt(songName, defaultTemp)
+    }
+
+    private fun updateSongTempo(songName: String?, tempo: Int) {
+        if (songName == null) {
+            return
+        }
+
+        val song = songList.find { it.name == songName }
+        song?.tempo = tempo
+    }
+
+
+    private fun updateSongInRecyclerView(songName: String?) {
+        val songAdapter = songRecyclerView.adapter as SongAdapter
+        songName?.let {
+            val songIndex = songList.indexOfFirst { it.name == songName }
+            if (songIndex != -1) {
+                songAdapter.notifyItemChanged(songIndex)
+            }
+        }
+    }
+
     private inner class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val songNameTextView: TextView = view.findViewById(R.id.songNameTextView)
+        val songTitle: TextView = view.findViewById(R.id.songTitle)
+        val songTempo: TextView = view.findViewById(R.id.songTempo)
         val songLayout: LinearLayout = view.findViewById(R.id.songLayout)
+
+        fun bind(song: Song) {
+            songTitle.text = song.name
+            songTempo.text = "Tempo: ${song.tempo}"
+        }
     }
 
     private inner class SongAdapter(val songs: MutableList<Song>) : RecyclerView.Adapter<SongViewHolder>() {
@@ -248,13 +323,14 @@ class PlaybackFragment : Fragment() {
         var selectedPosition = -1
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
-            val view = layoutInflater.inflate(R.layout.song_item, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.song_item, parent, false)
             return SongViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
             val song = songs[position]
-            holder.songNameTextView.text = song.name
+            holder.bind(song)
+
             holder.songLayout.setOnClickListener {
                 playMedia(song.path)
                 notifyItemChanged(selectedPosition)
@@ -263,6 +339,7 @@ class PlaybackFragment : Fragment() {
             }
             holder.songLayout.setBackgroundColor(if (position == selectedPosition) Color.DKGRAY else Color.TRANSPARENT)
         }
+
 
         override fun getItemCount() = songs.size
     }

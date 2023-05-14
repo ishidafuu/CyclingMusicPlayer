@@ -18,21 +18,21 @@
         <Button
                 android:id="@+id/tempoDownButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:text="@string/tempo_down" />
 
         <Button
                 android:id="@+id/defaultTempoButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:text="@string/default_tempo" />
 
         <Button
                 android:id="@+id/tempoUpButton"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="100dp"
                 android:layout_weight="1"
                 android:text="@string/tempo_up" />
 
