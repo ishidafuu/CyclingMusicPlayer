@@ -1,9 +1,13 @@
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,6 +25,11 @@ import androidx.media3.exoplayer.ExoPlayer
 import java.io.File
 import java.util.Random
 
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.view.KeyEvent
+
 data class Song(val name: String, val path: String, var tempo: Int)
 
 class PlaybackFragment : Fragment() {
@@ -34,6 +43,7 @@ class PlaybackFragment : Fragment() {
     private lateinit var defaultTempoButton: Button
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var songList: MutableList<Song>
+    private lateinit var mediaSession: MediaSessionCompat
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
     private var currentSongName: String? = null
@@ -52,9 +62,10 @@ class PlaybackFragment : Fragment() {
         setupViews(view)
         setupObservables()
         setupButtons()
+        setupMediaSession()
         loadLastFolderPath()
         populateSongList()
-        
+
         return view
     }
 
@@ -71,8 +82,9 @@ class PlaybackFragment : Fragment() {
             setMediaItem(MediaItem.fromUri(""))
             prepare()
         }
+
         songList = ArrayList()
-        
+
         val adapter = SongAdapter(songList)
 
         songRecyclerView.adapter = adapter
@@ -111,6 +123,47 @@ class PlaybackFragment : Fragment() {
             updateSongTempo(currentSongName, playbackSpeed)
             updateSongInRecyclerView(currentSongName)
         }
+    }
+
+    private fun setupMediaSession() {
+        mediaSession = MediaSessionCompat(requireContext(), "PlaybackFragment")
+        mediaSession.setCallback(object : MediaSessionCompat.Callback() {
+            // 既存のコード
+
+            override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
+
+                val keyEvent = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent?.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            if (currentSongName == null) {
+                                playRandomMedia()
+                            }
+                            else {
+                                exoPlayer.playWhenReady = true
+                            }
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            exoPlayer.playWhenReady = false
+                        }
+
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                            exoPlayer.playWhenReady = !exoPlayer.isPlaying
+                        }
+
+                        KeyEvent.KEYCODE_MEDIA_STOP -> {
+                            stopMedia()
+                        }
+                        // 他のキーイベントもここで処理します
+                    }
+                }
+
+                return super.onMediaButtonEvent(mediaButtonIntent)
+            }
+        })
+
+        // 重要：メディアセッションをアクティブにする
+        mediaSession.isActive = true
     }
 
     private fun loadLastFolderPath() {
@@ -184,7 +237,7 @@ class PlaybackFragment : Fragment() {
 
     private fun decreaseTempo() {
         playbackSpeed -= deltaTemp
-        if (playbackSpeed < minTemp) playbackSpeed = minTemp 
+        if (playbackSpeed < minTemp) playbackSpeed = minTemp
         updateTempo()
         saveTempoForSong(currentSongName, playbackSpeed)
     }
@@ -200,13 +253,22 @@ class PlaybackFragment : Fragment() {
     }
 
     fun playMedia(path: String) {
-        val mediaItem = MediaItem.fromUri(Uri.parse(path))
-        currentSongName = mediaItem.mediaMetadata.title?.toString() ?: File(path).name
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        playbackSpeed = getTempoForSong(currentSongName)
-        updateTempo()
-        exoPlayer.playWhenReady = true
+
+        if (requestAudioFocus()) {
+            // Audio focus was granted, start the playback
+            val mediaItem = MediaItem.fromUri(Uri.parse(path))
+            currentSongName = mediaItem.mediaMetadata.title?.toString() ?: File(path).name
+            exoPlayer.setMediaItem(mediaItem)
+            exoPlayer.prepare()
+            playbackSpeed = getTempoForSong(currentSongName)
+            updateTempo()
+            exoPlayer.playWhenReady = true
+        } else {
+            // Audio focus was not granted, do not start the playback
+            Log.d("AudioFocus", "Audio focus was not granted.")
+        }
+
+
     }
 
 
@@ -258,6 +320,7 @@ class PlaybackFragment : Fragment() {
     override fun onDestroy() {
         super.onDestroy()
         exoPlayer.release()
+        mediaSession.release()
     }
 
     private fun saveTempoForSong(songName: String?, tempo: Int) {
@@ -274,14 +337,14 @@ class PlaybackFragment : Fragment() {
         }
 
         val tempo: Any = sharedPreferences.getAll()[songName] ?: defaultTemp
-        
+
         if (tempo is Int == false) {
             saveTempoForSong(songName, defaultTemp)
             return defaultTemp
         }
-        
+
         return tempo
-        
+
 //        return sharedPreferences.getInt(songName, defaultTemp)
     }
 
@@ -304,6 +367,31 @@ class PlaybackFragment : Fragment() {
             }
         }
     }
+
+    private fun requestAudioFocus(): Boolean {
+        val audioManager = requireContext().getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        val playbackAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+            .build()
+
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(playbackAttributes)
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_GAIN -> Log.d("AudioFocus", "AUDIOFOCUS_GAIN")
+                    AudioManager.AUDIOFOCUS_LOSS -> Log.d("AudioFocus", "AUDIOFOCUS_LOSS")
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> Log.d("AudioFocus", "AUDIOFOCUS_LOSS_TRANSIENT")
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Log.d("AudioFocus", "AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK")
+                }
+            }.build()
+
+        val result = audioManager.requestAudioFocus(focusRequest)
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
 
     private inner class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val songTitle: TextView = view.findViewById(R.id.songTitle)
