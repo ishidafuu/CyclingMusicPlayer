@@ -7,6 +7,9 @@
     <string name="action_load_mp3">Load MP3</string>
     <string name="stop">Stop</string>
     <string name="play">Play</string>
+    <string name="tempo_down">-2％</string>
+    <string name="default_tempo">100%</string>
+    <string name="tempo_up">+2％</string>
     <string name="tab_playback">再生</string>
     <string name="tab_folder_selection">フォルダ選択</string>
     <string name="audio_permission_denied">audio_permission_denied</string>
