@@ -129,6 +129,9 @@ class PlaybackFragment : Fragment() {
         }
         songList.clear()
         songList.addAll(newSongList)
+
+        val songAdapter = songRecyclerView.adapter as SongAdapter
+        songAdapter.notifyDataSetChanged()
     }
 
     private fun fetchAllMp3Files(root: File): List<Song> {
@@ -154,11 +157,6 @@ class PlaybackFragment : Fragment() {
         sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
 
         populateSongList()
-
-        val songAdapter = songRecyclerView.adapter as SongAdapter
-        songAdapter.songs.clear()
-        songAdapter.songs.addAll(songList as ArrayList<Song>)
-        songAdapter.notifyDataSetChanged()
     }
 
     fun updateFileList() {
