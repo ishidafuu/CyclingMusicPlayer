@@ -42,24 +42,30 @@ class PlaybackFragment : Fragment() {
     private val viewModel: SharedViewModel by activityViewModels()
     private var folderPath: String? = null
     private var playbackSpeed: Float = 1f
-    
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.playback_fragment, container, false)
 
-        viewModel.selectedFolderPath.observe(viewLifecycleOwner) { folderPath ->
-            setFolderPath(folderPath)
-        }
+        setupViews(view)
+        setupObservables()
+        setupButtons()
+        loadLastFolderPath()
 
+        return view
+    }
+
+
+    private fun setupViews(view: View) {
         songRecyclerView = view.findViewById(R.id.songRecyclerView)
         stopButton = view.findViewById(R.id.stopButton)
         playButton = view.findViewById(R.id.playButton)
         tempoUpButton = view.findViewById(R.id.tempoUpButton)
         tempoDownButton = view.findViewById(R.id.tempoDownButton)
         defaultTempoButton = view.findViewById(R.id.defaultTempoButton)
-        
+
         exoPlayer = ExoPlayer.Builder(requireContext()).build().apply {
             setMediaItem(MediaItem.fromUri(""))
             prepare()
@@ -72,7 +78,15 @@ class PlaybackFragment : Fragment() {
 
         songRecyclerView.adapter = adapter
         songRecyclerView.layoutManager = LinearLayoutManager(context)
+    }
 
+    private fun setupObservables() {
+        viewModel.selectedFolderPath.observe(viewLifecycleOwner) { folderPath ->
+            setFolderPath(folderPath)
+        }
+    }
+
+    private fun setupButtons() {
         stopButton.setOnClickListener {
             stopMedia()
         }
@@ -92,14 +106,14 @@ class PlaybackFragment : Fragment() {
         defaultTempoButton.setOnClickListener {
             resetTempo()
         }
+    }
 
+    private fun loadLastFolderPath() {
         sharedPreferences = requireContext().getSharedPreferences("CycleMusicPrefs", Context.MODE_PRIVATE)
         val lastFolderPath = sharedPreferences.getString("LastFolderPath", null)
         if (lastFolderPath != null) {
             setFolderPath(lastFolderPath)
         }
-
-        return view
     }
 
     private fun populateSongList() {
@@ -143,7 +157,7 @@ class PlaybackFragment : Fragment() {
         }
     }
 
-    fun stopMedia() {
+    private fun stopMedia() {
         exoPlayer.stop()
         val songAdapter = (songRecyclerView.adapter as SongAdapter)
         val previousSelectedPosition = songAdapter.selectedPosition
@@ -158,7 +172,7 @@ class PlaybackFragment : Fragment() {
         exoPlayer.playWhenReady = true
     }
 
-    fun playRandomMedia() {
+    private fun playRandomMedia() {
         if (songList.isEmpty()) {
             return
         }
@@ -194,7 +208,7 @@ class PlaybackFragment : Fragment() {
         playbackSpeed = 1f
         exoPlayer.setPlaybackParameters(PlaybackParameters(playbackSpeed))
     }
-    
+
     private fun onSongSelected(position: Int) {
         try {
             val selectedFile = songList[position]

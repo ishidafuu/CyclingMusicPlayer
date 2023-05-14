@@ -12,7 +12,7 @@ import androidx.fragment.app.Fragment
 import com.example.cyclemusic.R
 import java.io.File
 
-class FolderSelectionFragment : Fragment() , OnBackPressed{
+class FolderSelectionFragment : Fragment(), OnBackPressed {
 
     private lateinit var backButton: Button
     private lateinit var currentDir: File
@@ -21,21 +21,31 @@ class FolderSelectionFragment : Fragment() , OnBackPressed{
     private lateinit var folders: MutableList<File>
 
     private var listener: OnFolderSelectedListener? = null
-    
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.folder_selection_fragment, container, false)
-        
+
+        setupViews(view)
+        populateFolderList()
+        setupListView()
+        setupButtons()
+
+        return view
+    }
+
+    private fun setupViews(view: View) {
         backButton = view.findViewById(R.id.backButton)
         folderListView = view.findViewById(R.id.folderListView)
         folderList = ArrayList()
         folders = ArrayList()
 
         currentDir = Environment.getExternalStorageDirectory()
-        populateFolderList()
+    }
 
+    private fun setupListView() {
         val adapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_list_item_1,
@@ -43,27 +53,29 @@ class FolderSelectionFragment : Fragment() , OnBackPressed{
         )
 
         folderListView.adapter = adapter
-        
+
         folderListView.onItemClickListener =
             AdapterView.OnItemClickListener { _, _, position, _ ->
                 val selectedFolder = folders[position]
-                if (selectedFolder.isDirectory) {
-                    currentDir = selectedFolder
-                    populateFolderList()
-                    adapter.notifyDataSetChanged()
-                    folderSelected(currentDir.absolutePath)
-//                    listener?.onFolderSelected(currentDir.absolutePath)
-                } else if (selectedFolder.name.endsWith(".mp3", ignoreCase = true)) {
-//                    listener?.onFolderSelected(mp3Files)
-                }
+                handleFolderSelection(selectedFolder, adapter)
             }
-        
+    }
 
+    private fun handleFolderSelection(selectedFolder: File, adapter: ArrayAdapter<String>) {
+        if (selectedFolder.isDirectory) {
+            currentDir = selectedFolder
+            populateFolderList()
+            adapter.notifyDataSetChanged()
+            folderSelected(currentDir.absolutePath)
+        } else if (selectedFolder.name.endsWith(".mp3", ignoreCase = true)) {
+            // Handle .mp3 file selection
+        }
+    }
+
+    private fun setupButtons() {
         backButton.setOnClickListener {
             backPressed()
         }
-
-        return view
     }
 
     private fun backPressed() {
@@ -89,15 +101,16 @@ class FolderSelectionFragment : Fragment() , OnBackPressed{
         super.onDetach()
         listener = null
     }
-    
+
     private fun populateFolderList() {
         folderList.clear()
         folders.clear()
         val files = currentDir.listFiles()
         if (files != null) {
             for (file in files) {
-                if (file.isDirectory 
-                    || file.name.endsWith(".mp3", ignoreCase = true)) {
+                if (file.isDirectory
+                    || file.name.endsWith(".mp3", ignoreCase = true)
+                ) {
                     folderList.add(file.name)
                     folders.add(file)
                 }
