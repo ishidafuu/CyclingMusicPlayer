@@ -29,6 +29,7 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.view.KeyEvent
+import com.example.cyclemusic.MainActivity
 
 data class Song(val name: String, val path: String, var tempo: Int)
 
@@ -209,6 +210,9 @@ class PlaybackFragment : Fragment() {
         this.folderPath = folderPath
         sharedPreferences.edit().putString("LastFolderPath", folderPath).apply()
 
+        val folderName = File(folderPath).name
+        (activity as MainActivity).supportActionBar?.title = folderName
+        
         populateSongList()
     }
 
