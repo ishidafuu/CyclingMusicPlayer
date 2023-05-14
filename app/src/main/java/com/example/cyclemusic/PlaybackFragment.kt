@@ -2,12 +2,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,22 +19,19 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.example.cyclemusic.R
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.cyclemusic.MainActivity
+import com.example.cyclemusic.R
 import java.io.File
 import java.util.Random
+import java.util.concurrent.TimeUnit
 
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.view.KeyEvent
-import com.example.cyclemusic.MainActivity
-
-data class Song(val name: String, val path: String, var tempo: Int)
+data class Song(val name: String, val path: String, var tempo: Int, var duration: Long = 0L)
 
 class PlaybackFragment : Fragment() {
 
@@ -53,6 +53,7 @@ class PlaybackFragment : Fragment() {
     private val minTemp: Int = 10
     private val maxTemp: Int = 200
     private var playbackSpeed: Int = defaultTemp
+    private var songStartTime: Long = 0L
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -84,6 +85,20 @@ class PlaybackFragment : Fragment() {
             prepare()
         }
 
+        exoPlayer.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                super.onPlaybackStateChanged(state)
+                if (state == Player.STATE_ENDED) {
+                    val duration = getDurationForSong(currentSongName)
+                    val updatedDuration = duration + exoPlayer.duration
+                    saveDurationForSong(currentSongName, updatedDuration)
+                    updateSongDuration(currentSongName, updatedDuration)
+                    updateSongInRecyclerView(currentSongName)
+                }
+            }
+        })
+
+        
         songList = ArrayList()
 
         val adapter = SongAdapter(songList)
@@ -226,9 +241,21 @@ class PlaybackFragment : Fragment() {
         exoPlayer.stop()
         val songAdapter = (songRecyclerView.adapter as SongAdapter)
         val previousSelectedPosition = songAdapter.selectedPosition
+
+        stopSongDurationTracking(currentSongName)
         currentSongName = null
         songAdapter.selectedPosition = -1
         songAdapter.notifyItemChanged(previousSelectedPosition)
+    }
+
+    private fun stopSongDurationTracking(songName: String?) {
+        if (songName == null) {
+            return
+        }
+
+        val elapsedTime = System.currentTimeMillis() - songStartTime
+        val previousDuration = getDurationForSong(songName)
+        saveDurationForSong(songName, previousDuration + elapsedTime)
     }
 
 
@@ -267,14 +294,18 @@ class PlaybackFragment : Fragment() {
             playbackSpeed = getTempoForSong(currentSongName)
             updateTempo()
             exoPlayer.playWhenReady = true
+            songStartTime = System.currentTimeMillis()
+            startSongDurationTracking(currentSongName)
         } else {
             // Audio focus was not granted, do not start the playback
             Log.d("AudioFocus", "Audio focus was not granted.")
         }
-
-
     }
 
+    private fun startSongDurationTracking(songName: String?) {
+        songStartTime = System.currentTimeMillis()
+    }
+    
 
     private fun playRandomMedia() {
         if (songList.isEmpty()) {
@@ -332,7 +363,7 @@ class PlaybackFragment : Fragment() {
             return
         }
 
-        sharedPreferences.edit().putInt(songName, tempo).apply()
+        sharedPreferences.edit().putInt(songName + "_tempo", tempo).apply()
     }
 
     private fun getTempoForSong(songName: String?): Int {
@@ -340,16 +371,30 @@ class PlaybackFragment : Fragment() {
             return defaultTemp
         }
 
-        val tempo: Any = sharedPreferences.getAll()[songName] ?: defaultTemp
+//        val tempo: Any = sharedPreferences.getAll()[songName] ?: defaultTemp
+//        if (tempo is Int == false) {
+//            saveTempoForSong(songName, defaultTemp)
+//            return defaultTemp
+//        }
+//        return tempo
 
-        if (tempo is Int == false) {
-            saveTempoForSong(songName, defaultTemp)
-            return defaultTemp
+        return sharedPreferences.getInt(songName + "_tempo", defaultTemp)
+    }
+
+    private fun saveDurationForSong(songName: String?, duration: Long) {
+        if (songName == null) {
+            return
         }
 
-        return tempo
+        sharedPreferences.edit().putLong(songName + "_duration", duration).apply()
+    }
 
-//        return sharedPreferences.getInt(songName, defaultTemp)
+    private fun getDurationForSong(songName: String?): Long {
+        if (songName == null) {
+            return 0L
+        }
+
+        return sharedPreferences.getLong(songName + "_duration", 0L)
     }
 
     private fun updateSongTempo(songName: String?, tempo: Int) {
@@ -361,6 +406,14 @@ class PlaybackFragment : Fragment() {
         song?.tempo = tempo
     }
 
+    private fun updateSongDuration(songName: String?, duration: Long) {
+        if (songName == null) {
+            return
+        }
+
+        val song = songList.find { it.name == songName }
+        song?.duration = duration
+    }
 
     private fun updateSongInRecyclerView(songName: String?) {
         val songAdapter = songRecyclerView.adapter as SongAdapter
@@ -396,15 +449,29 @@ class PlaybackFragment : Fragment() {
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
 
+    private fun convertMillisToMinutesAndSeconds(millis: Long): String {
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(millis)
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) - TimeUnit.MINUTES.toSeconds(minutes)
+
+        return String.format("%d:%02d", minutes, seconds)
+    }
 
     private inner class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val songTitle: TextView = view.findViewById(R.id.songTitle)
-        val songTempo: TextView = view.findViewById(R.id.songTempo)
+        val songTempoAndDuration: TextView = view.findViewById(R.id.songTempoAndDuration)
         val songLayout: LinearLayout = view.findViewById(R.id.songLayout)
+
+//        fun bind(song: Song) {
+//            songTitle.text = song.name
+//            songTempo.text = "${song.tempo}%"
+//        }
 
         fun bind(song: Song) {
             songTitle.text = song.name
-            songTempo.text = "Tempo: ${song.tempo}"
+            val songDuration = getDurationForSong(song.name)
+            val duration = convertMillisToMinutesAndSeconds(songDuration)
+
+            songTempoAndDuration.text = "${song.tempo}% $duration"
         }
     }
 

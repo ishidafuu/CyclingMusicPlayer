@@ -73,8 +73,8 @@ class MainActivity : AppCompatActivity(), OnFolderSelectedListener {
     override fun onBackPressed() {
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         val navHostFragment = supportFragmentManager.findFragmentByTag("f" + viewPager.currentItem)
-        if ((navHostFragment?.childFragmentManager?.fragments?.get(0) as? OnBackPressed)?.onBackPressed() != true) {
-            // super.onBackPressed()
+        if ((navHostFragment as? OnBackPressed)?.onBackPressed() != true) {
+            super.onBackPressed()
         }
     }
 
