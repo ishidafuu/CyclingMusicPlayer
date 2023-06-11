@@ -94,6 +94,7 @@ class PlaybackFragment : Fragment() {
                     saveDurationForSong(currentSongName, updatedDuration)
                     updateSongDuration(currentSongName, updatedDuration)
                     updateSongInRecyclerView(currentSongName)
+                    playNextSong()
                 }
             }
         })
@@ -407,6 +408,13 @@ class PlaybackFragment : Fragment() {
                 songAdapter.notifyItemChanged(songIndex)
             }
         }
+    }
+
+    private fun playNextSong() {
+        val currentIndex = songList.indexOfFirst { it.name == currentSongName }
+        val nextIndex = if (currentIndex + 1 < songList.size) currentIndex + 1 else 0
+        val nextSong = songList[nextIndex]
+        playMedia(nextSong.path)
     }
 
     private fun requestAudioFocus(): Boolean {
