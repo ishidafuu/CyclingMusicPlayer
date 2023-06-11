@@ -287,6 +287,8 @@ class PlaybackFragment : Fragment() {
     fun playMedia(path: String) {
 
         if (requestAudioFocus()) {
+            stopMedia()
+            
             // Audio focus was granted, start the playback
             val mediaItem = MediaItem.fromUri(Uri.parse(path))
             currentSongName = mediaItem.mediaMetadata.title?.toString() ?: File(path).name
@@ -317,8 +319,6 @@ class PlaybackFragment : Fragment() {
         if (songAdapter.itemCount == 0) {
             return
         }
-
-        stopMedia()
         
         val randomIndex = Random().nextInt(songAdapter.itemCount)
         playMedia(songList[randomIndex].path)
