@@ -98,7 +98,7 @@ class PlaybackFragment : Fragment() {
             }
         })
 
-        
+
         songList = ArrayList()
 
         val adapter = SongAdapter(songList)
@@ -154,11 +154,11 @@ class PlaybackFragment : Fragment() {
                         KeyEvent.KEYCODE_MEDIA_PLAY -> {
                             if (currentSongName == null) {
                                 playRandomMedia()
-                            }
-                            else {
+                            } else {
                                 exoPlayer.playWhenReady = true
                             }
                         }
+
                         KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                             exoPlayer.playWhenReady = false
                         }
@@ -227,7 +227,7 @@ class PlaybackFragment : Fragment() {
 
         val folderName = File(folderPath).name
         (activity as MainActivity).supportActionBar?.title = folderName
-        
+
         populateSongList()
     }
 
@@ -305,7 +305,7 @@ class PlaybackFragment : Fragment() {
     private fun startSongDurationTracking(songName: String?) {
         songStartTime = System.currentTimeMillis()
     }
-    
+
 
     private fun playRandomMedia() {
         if (songList.isEmpty()) {
@@ -327,16 +327,7 @@ class PlaybackFragment : Fragment() {
 
         songRecyclerView.layoutManager?.scrollToPosition(randomIndex)
     }
-
-    private fun onSongSelected(position: Int) {
-        try {
-            val selectedFile = songList[position]
-            playMedia(selectedFile.path)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
+    
     override fun onPause() {
         super.onPause()
         if (exoPlayer.isPlaying) {
@@ -370,13 +361,6 @@ class PlaybackFragment : Fragment() {
         if (songName == null) {
             return defaultTemp
         }
-
-//        val tempo: Any = sharedPreferences.getAll()[songName] ?: defaultTemp
-//        if (tempo is Int == false) {
-//            saveTempoForSong(songName, defaultTemp)
-//            return defaultTemp
-//        }
-//        return tempo
 
         return sharedPreferences.getInt(songName + "_tempo", defaultTemp)
     }
@@ -460,11 +444,6 @@ class PlaybackFragment : Fragment() {
         val songTitle: TextView = view.findViewById(R.id.songTitle)
         val songTempoAndDuration: TextView = view.findViewById(R.id.songTempoAndDuration)
         val songLayout: LinearLayout = view.findViewById(R.id.songLayout)
-
-//        fun bind(song: Song) {
-//            songTitle.text = song.name
-//            songTempo.text = "${song.tempo}%"
-//        }
 
         fun bind(song: Song) {
             songTitle.text = song.name
