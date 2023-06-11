@@ -94,7 +94,7 @@ class PlaybackFragment : Fragment() {
                     saveDurationForSong(currentSongName, updatedDuration)
                     updateSongDuration(currentSongName, updatedDuration)
                     updateSongInRecyclerView(currentSongName)
-                    playNextSong()
+                    playRandomMedia()
                 }
             }
         })
@@ -318,6 +318,8 @@ class PlaybackFragment : Fragment() {
             return
         }
 
+        stopMedia()
+        
         val randomIndex = Random().nextInt(songAdapter.itemCount)
         playMedia(songList[randomIndex].path)
 
@@ -409,13 +411,7 @@ class PlaybackFragment : Fragment() {
             }
         }
     }
-
-    private fun playNextSong() {
-        val currentIndex = songList.indexOfFirst { it.name == currentSongName }
-        val nextIndex = if (currentIndex + 1 < songList.size) currentIndex + 1 else 0
-        val nextSong = songList[nextIndex]
-        playMedia(nextSong.path)
-    }
+    
 
     private fun requestAudioFocus(): Boolean {
         val audioManager = requireContext().getSystemService(Context.AUDIO_SERVICE) as AudioManager
